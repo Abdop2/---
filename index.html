@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>تحليل الطقس</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.5s ease;
+        }
+.theme-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    margin: 0 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+body {
+    transition: background-color 0.5s ease, color 0.5s ease;
+}
+.loading {
+    display: none;
+    font-size: 18px;
+    color: #007bff;
+    text-align: center;
+}
+.error-message {
+    color: red;
+    font-size: 16px;
+    text-align: center;
+    margin-top: 20px;
+}
+@media (max-width: 768px) {
+    .input-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .theme-selector {
+        flex-direction: column;
+    }
+
+    .theme-button {
+        margin: 5px 0;
+    }
+}
+.notification {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #28a745;
+    color: #ffffff;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    font-size: 16px;
+}
+
+.theme-button:hover {
+    background-color: #0056b3;
+    color: #ffffff;
+}
+        .container {
+            margin: 100px auto;
+            padding: 20px;
+            width: 300px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            transition: box-shadow 0.3s ease;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .input-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input {
+            width: 70%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            width: 25%;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .weather-info {
+            margin-top: 20px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        p, h2 {
+            margin: 5px 0;
+        }
+
+        #icon {
+            width: 100px;
+            height: auto;
+        }
+
+        #toggleTemp {
+            margin-top: 10px;
+            cursor: pointer;
+            color: #007bff;
+            text-decoration: underline;
+        }
+
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+        
+        /* تحسين استجابة التصميم */
+        @media (max-width: 600px) {
+            .container {
+                width: 90%;
+            }
+
+            button {
+                width: 100%;
+                margin-top: 10px;
+            }
+
+            .input-container {
+                flex-direction: column;
+            }
+
+            input {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>تحليل الطقس</h1>
+        <div class="input-container">
+            <input type="text" id="cityInput" placeholder="أدخل اسم المدينة">
+            <button id="getWeather">احصل على الطقس</button>
+        </div>
+        <div class="weather-info" id="weatherInfo">
+            <h2 id="cityName"></h2>
+            <img id="icon" src="" alt="Weather Icon">
+            <p id="temperature"></p>
+            <p id="tempMin"></p>
+            <p id="tempMax"></p>
+            <p id="description"></p>
+            <p id="humidity"></p>
+            <p id="wind"></p>
+            <p id="pressure"></p>
+            <p id="sunrise"></p>
+            <p id="sunset"></p>
+            <span id="toggleTemp">تحويل إلى فهرنهايت</span>
+        </div>
+        <p class="error-message" id="errorMessage"></p>
+    </div>
+<div id="notification" class="notification"></div>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+<a href="https://abdop2.github.io/SEO__YT/" target="_blank"> SEO-YT افضل محرك بحث خالي من الاعلانات</a>
+    <script>
+        const apiKey = '512f12ae6e2696c3d3c969a232130095';
+
+        const cityInput = document.getElementById('cityInput');
+        const getWeatherBtn = document.getElementById('getWeather');
+        const weatherInfo = document.getElementById('weatherInfo');
+        const cityName = document.getElementById('cityName');
+        const icon = document.getElementById('icon');
+        const temperature = document.getElementById('temperature');
+        const tempMin = document.getElementById('tempMin');
+        const tempMax = document.getElementById('tempMax');
+        const description = document.getElementById('description');
+        const humidity = document.getElementById('humidity');
+        const wind = document.getElementById('wind');
+        const pressure = document.getElementById('pressure');
+        const sunrise = document.getElementById('sunrise');
+        const sunset = document.getElementById('sunset');
+        const toggleTemp = document.getElementById('toggleTemp');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let isCelsius = true;
+
+        async function getWeather() {
+            const city = cityInput.value.trim();
+            if (city === '') {
+                errorMessage.textContent = 'من فضلك أدخل اسم المدينة.';
+                return;
+            } else {
+                errorMessage.textContent = '';
+            }
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.style.backgroundColor = type === 'error' ? '#dc3545' : '#28a745';
+    notification.style.display = 'block';
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 3000);
+}
+            try {
+                // تحقق من التخزين المؤقت
+                const cachedData = localStorage.getItem(`weather-${city}`);
+                const cacheExpiry = localStorage.getItem(`cache-expiry-${city}`);
+                const now = Date.now();
+                
+                let data;
+                if (cachedData && cacheExpiry && now < parseInt(cacheExpiry)) {
+                    data = JSON.parse(cachedData);
+                } else {
+                    const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric&lang=ar`);
+                    data = await response.json();
+                    localStorage.setItem(`weather-${city}`, JSON.stringify(data));
+                    localStorage.setItem(`cache-expiry-${city}`, now + 3600000); // تخزين البيانات لمدة ساعة
+                }
+
+                if (data.cod === '404') {
+                    errorMessage.textContent = 'لم يتم العثور على المدينة.';
+                    return;
+                }
+
+                const tempCelsius = data.main.temp;
+                cityName.innerHTML = `الطقس في ${data.name}`;
+                temperature.innerHTML = `درجة الحرارة: ${tempCelsius}°C`;
+                tempMin.innerHTML = `أدنى درجة حرارة: ${data.main.temp_min}°C`;
+                tempMax.innerHTML = `أقصى درجة حرارة: ${data.main.temp_max}°C`;
+                description.innerHTML = `الوصف: ${data.weather[0].description}`;
+                humidity.innerHTML = `الرطوبة: ${data.main.humidity}%`;
+                wind.innerHTML = `سرعة الرياح: ${data.wind.speed} م/ث`;
+                pressure.innerHTML = `الضغط الجوي: ${data.main.pressure} hPa`;
+                sunrise.innerHTML = `الشروق: ${new Date(data.sys.sunrise * 1000).toLocaleTimeString()}`;
+                sunset.innerHTML = `الغروب: ${new Date(data.sys.sunset * 1000).toLocaleTimeString()}`;
+
+                icon.src = `http://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+
+                // إشعار بحالة الطقس المتطرفة
+                if (data.weather[0].main === 'Thunderstorm' || data.weather[0].main === 'Rain') {
+                    alert('تحذير: توقع حدوث حالة طقس متطرفة.');
+                }
+
+                changeBackground(data.weather[0].main);
+                weatherInfo.style.opacity = 1;
+
+                toggleTemp.onclick = function() {
+                    if (isCelsius) {
+                        const tempFahrenheit = (tempCelsius * 9/5) + 32;
+                        temperature.innerHTML = `درجة الحرارة: ${tempFahrenheit.toFixed(2)}°F`;
+                        toggleTemp.innerHTML = 'تحويل إلى مئوية';
+                    } else {
+                        temperature.innerHTML = `درجة الحرارة: ${tempCelsius}°C`;
+                        toggleTemp.innerHTML = 'تحويل إلى فهرنهايت';
+                    }
+                    isCelsius = !isCelsius;
+                };
+
+            } catch (error) {
+                errorMessage.textContent = 'حدث خطأ أثناء جلب بيانات الطقس. يرجى المحاولة مرة أخرى.';
+                console.error('حدث خطأ أثناء جلب بيانات الطقس:', error);
+            }
+        }
+
+        function changeBackground(weatherCondition) {
+            let backgroundColor;
+
+            switch (weatherCondition) {
+                case 'Clear':
+                    backgroundColor = '#87CEEB'; // سماء صافية
+                    break;
+                case 'Clouds':
+                    backgroundColor = '#B0C4DE'; // غائم
+                    break;
+                case 'Rain':
+                case 'Drizzle':
+                    backgroundColor = '#778899'; // مطر
+                    break;
+                case 'Thunderstorm':
+                    backgroundColor = '#2F4F4F'; // عاصفة رعدية
+                    break;
+                case 'Snow':
+                    backgroundColor = '#F0F8FF'; // ثلوج
+                    break;
+                default:
+                    backgroundColor = '#F4F4F4'; // الافتراضي
+                    break;
+            }
+
+            document.body.style.backgroundColor = backgroundColor;
+        }
+
+        async function getWeatherByLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const { latitude, longitude } = position.coords;
+
+                    try {
+                        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric&lang=ar`);
+                        const data = await response.json();
+
+                        if (data.cod === '404') {
+                            errorMessage.textContent = 'لم يتم العثور على الموقع.';
+                            return;
+                        }
+
+                        const tempCelsius = data.main.temp;
+                        cityName.innerHTML = `الطقس في ${data.name}`;
+                        temperature.innerHTML = `درجة الحرارة: ${tempCelsius}°C`;
+                        tempMin.innerHTML = `أدنى درجة حرارة: ${data.main.temp_min}°C`;
+                        tempMax.innerHTML = `أقصى درجة حرارة: ${data.main.temp_max}°C`;
+                        description.innerHTML = `الوصف: ${data.weather[0].description}`;
+                        humidity.innerHTML = `الرطوبة: ${data.main.humidity}%`;
+                        wind.innerHTML = `سرعة الرياح: ${data.wind.speed} م/ث`;
+                        pressure.innerHTML = `الضغط الجوي: ${data.main.pressure} hPa`;
+                        sunrise.innerHTML = `الشروق: ${new Date(data.sys.sunrise * 1000).toLocaleTimeString()}`;
+                        sunset.innerHTML = `الغروب: ${new Date(data.sys.sunset * 1000).toLocaleTimeString()}`;
+
+                        icon.src = `http://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+
+                        // إشعار بحالة الطقس المتطرفة
+                        if (data.weather[0].main === 'Thunderstorm' || data.weather[0].main === 'Rain') {
+                            alert('تحذير: توقع حدوث حالة طقس متطرفة.');
+                        }
+
+                        changeBackground(data.weather[0].main);
+                        weatherInfo.style.opacity = 1;
+
+                        toggleTemp.onclick = function() {
+                            if (isCelsius) {
+                                const tempFahrenheit = (tempCelsius * 9/5) + 32;
+                                temperature.innerHTML = `درجة الحرارة: ${tempFahrenheit.toFixed(2)}°F`;
+                                toggleTemp.innerHTML = 'تحويل إلى مئوية';
+                            } else {
+                                temperature.innerHTML = `درجة الحرارة: ${tempCelsius}°C`;
+                                toggleTemp.innerHTML = 'تحويل إلى فهرنهايت';
+                            }
+                            isCelsius = !isCelsius;
+                        };
+
+                    } catch (error) {
+                        errorMessage.textContent = 'حدث خطأ أثناء جلب بيانات الطقس. يرجى المحاولة مرة أخرى.';
+                        console.error('حدث خطأ أثناء جلب بيانات الطقس:', error);
+                    }
+                }, (error) => {
+                    errorMessage.textContent = 'لا يمكن تحديد الموقع الجغرافي.';
+                });
+            } else {
+                errorMessage.textContent = 'الميزة غير مدعومة في هذا المتصفح.';
+            }
+        }
+
+        function autoUpdateWeather() {
+            setInterval(getWeather, 3600000); // تحديث البيانات كل ساعة
+        }
+
+        getWeatherBtn.addEventListener('click', getWeather);
+        // إضافة زر لتحديد الموقع الجغرافي
+        document.addEventListener('DOMContentLoaded', () => {
+            const locationBtn = document.createElement('button');
+            locationBtn.textContent = 'احصل على الطقس بناءً على الموقع الجغرافي';
+            locationBtn.style.marginTop = '10px';
+            locationBtn.style.width = '100%';
+            locationBtn.style.backgroundColor = '#007bff';
+            locationBtn.style.border = 'none';
+            locationBtn.style.color = 'white';
+            locationBtn.style.borderRadius = '5px';
+            locationBtn.style.padding = '10px';
+            locationBtn.style.cursor = 'pointer';
+            locationBtn.addEventListener('click', getWeatherByLocation);
+
+            document.querySelector('.container').appendChild(locationBtn);
+        });
+
+        // بدء التحديث التلقائي
+        autoUpdateWeather();
+    </script>
+    
+</body>
+</html>
+<footer>
+    <p>تمت برمجة الموقع بواسطة</p>
+    <p><span class="glow rtk">RTK</span></p>
+</footer>
+
+<style>
+    footer {
+        text-align: center;
+        margin-top: 40px;
+        color: #313131;
+        font-size: 20px;
+        font-weight: bold;
+    }
+    footer p {
+        margin: 10px 0;
+    }
+    .glow {
+        font-weight: bold;
+        font-size: 25px; /* حجم الخط */
+    }
+    .rtk {
+        color: #fff; /* لون النص لـ RTK */
+        text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000, 0 0 40px #ff0000;
+        /* تأثير التوهج الأحمر لـ RTK */
+    }
+</style>
